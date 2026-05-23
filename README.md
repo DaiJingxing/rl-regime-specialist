@@ -270,6 +270,41 @@ The project reports:
 - tracking error
 - information ratio
 
+## Visualization
+
+The full buy/sell regime model can now generate research charts for:
+
+- return
+- NAV / net asset value
+- Sharpe ratio
+
+Generate charts from a completed regime-system output directory:
+
+```bash
+python -m src.regime_visualize outputs/regime_trading_system_no_take_profit
+```
+
+This writes:
+
+```text
+outputs/regime_trading_system_no_take_profit/figures/nav_test.png
+outputs/regime_trading_system_no_take_profit/figures/returns_test.png
+outputs/regime_trading_system_no_take_profit/figures/sharpe_test.png
+outputs/regime_trading_system_no_take_profit/average_nav_test.csv
+```
+
+### NAV / Net Asset Value
+
+![Average NAV on Test Set](docs/figures/regime_nav_test.png)
+
+### Return
+
+![Total Return on Test Set](docs/figures/regime_returns_test.png)
+
+### Sharpe Ratio
+
+![Sharpe Ratio on Test Set](docs/figures/regime_sharpe_test.png)
+
 ## What We Learned So Far
 
 The model has shown some consistent strengths:
@@ -339,4 +374,3 @@ src/
 ## Disclaimer
 
 This repository is for research and educational purposes only. It is not investment advice, and the backtest results are not evidence of future performance.
-
