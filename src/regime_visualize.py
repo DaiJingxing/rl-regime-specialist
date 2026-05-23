@@ -146,6 +146,30 @@ def plot_return_and_sharpe(df: pd.DataFrame, output_path: str | Path) -> None:
     plt.close(fig)
 
 
+def add_estimated_cost(df: pd.DataFrame, cost_bps: float) -> pd.DataFrame:
+    out = df.copy()
+    out["estimated_cost"] = out["turnover"] * cost_bps / 10_000.0
+    return out
+
+
+def write_visualization_metrics(df: pd.DataFrame, output_path: str | Path) -> str:
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    columns = [
+        "method",
+        "total_return",
+        "annual_volatility",
+        "sharpe_ratio",
+        "max_drawdown",
+        "num_trades",
+        "turnover",
+        "estimated_cost",
+        "time_in_market",
+    ]
+    df[columns].to_csv(output, index=False)
+    return str(output)
+
+
 def write_regime_research_charts(output_dir: str | Path) -> dict[str, str]:
     out = Path(output_dir)
     aggregate_path = out / "test_metrics_aggregate.csv"
@@ -247,6 +271,9 @@ def write_nav_data(method_results: dict[str, list[DailyBacktestResult]], output_
 def write_full_regime_visualization(output_dir: str | Path, data_dir: str | Path = "data/stooq") -> dict[str, str]:
     out = Path(output_dir)
     aggregate_df = pd.read_csv(out / "test_metrics_aggregate.csv")
+    summary = pd.read_json(out / "summary.json", typ="series")
+    cost_bps = float(dict(summary["best_entry_config"]).get("cost_bps", 5.0))
+    aggregate_df = add_estimated_cost(aggregate_df, cost_bps)
     method_results = rebuild_regime_results(out, data_dir=data_dir)
     figure_dir = out / "figures"
     paths = {
@@ -254,15 +281,23 @@ def write_full_regime_visualization(output_dir: str | Path, data_dir: str | Path
         "return": figure_dir / "returns_test.png",
         "sharpe": figure_dir / "sharpe_test.png",
         "drawdown": figure_dir / "drawdown_test.png",
+        "volatility": figure_dir / "volatility_test.png",
+        "trade_count": figure_dir / "trade_count_test.png",
+        "estimated_cost": figure_dir / "estimated_cost_test.png",
         "return_sharpe": figure_dir / "return_sharpe_test.png",
         "nav_csv": out / "average_nav_test.csv",
+        "metrics_csv": out / "visualization_metrics.csv",
     }
     plot_nav(method_results, paths["nav"])
     plot_metric_bars(aggregate_df, "total_return", "Total Return on Test Set", "Total return", paths["return"])
     plot_metric_bars(aggregate_df, "sharpe_ratio", "Sharpe Ratio on Test Set", "Sharpe ratio", paths["sharpe"])
     plot_metric_bars(aggregate_df, "max_drawdown", "Maximum Drawdown on Test Set", "Max drawdown", paths["drawdown"])
+    plot_metric_bars(aggregate_df, "annual_volatility", "Annualized Volatility on Test Set", "Annual volatility", paths["volatility"])
+    plot_metric_bars(aggregate_df, "num_trades", "Trade Count on Test Set", "Number of trades", paths["trade_count"])
+    plot_metric_bars(aggregate_df, "estimated_cost", "Estimated Transaction Cost on Test Set", "Estimated cost", paths["estimated_cost"])
     plot_return_and_sharpe(aggregate_df, paths["return_sharpe"])
     write_nav_data(method_results, paths["nav_csv"])
+    write_visualization_metrics(aggregate_df, paths["metrics_csv"])
     return {name: str(path) for name, path in paths.items()}
 
 

@@ -277,6 +277,10 @@ The full buy/sell regime model can now generate research charts for:
 - return
 - NAV / net asset value
 - Sharpe ratio
+- max drawdown
+- annualized volatility
+- trade count
+- estimated transaction cost
 
 Generate charts from a completed regime-system output directory:
 
@@ -290,7 +294,12 @@ This writes:
 outputs/regime_trading_system_no_take_profit/figures/nav_test.png
 outputs/regime_trading_system_no_take_profit/figures/returns_test.png
 outputs/regime_trading_system_no_take_profit/figures/sharpe_test.png
+outputs/regime_trading_system_no_take_profit/figures/drawdown_test.png
+outputs/regime_trading_system_no_take_profit/figures/volatility_test.png
+outputs/regime_trading_system_no_take_profit/figures/trade_count_test.png
+outputs/regime_trading_system_no_take_profit/figures/estimated_cost_test.png
 outputs/regime_trading_system_no_take_profit/average_nav_test.csv
+outputs/regime_trading_system_no_take_profit/visualization_metrics.csv
 ```
 
 ### NAV / Net Asset Value
@@ -304,6 +313,30 @@ outputs/regime_trading_system_no_take_profit/average_nav_test.csv
 ### Sharpe Ratio
 
 ![Sharpe Ratio on Test Set](docs/figures/regime_sharpe_test.png)
+
+### Max Drawdown
+
+![Maximum Drawdown on Test Set](docs/figures/regime_drawdown_test.png)
+
+### Annualized Volatility
+
+![Annualized Volatility on Test Set](docs/figures/regime_volatility_test.png)
+
+### Trade Count
+
+![Trade Count on Test Set](docs/figures/regime_trade_count_test.png)
+
+### Estimated Transaction Cost
+
+![Estimated Transaction Cost on Test Set](docs/figures/regime_estimated_cost_test.png)
+
+### Interpretation
+
+The NAV curve looks smoother because the regime system reduces risk exposure rather than simply maximizing raw return.
+
+On this test set, `RL Regime Specialist` has slightly lower total return than buy-and-hold, but it also has lower annualized volatility and lower maximum drawdown. That combination gives it a higher Sharpe ratio. In other words, the model's current advantage is risk-adjusted performance and drawdown control, not maximum absolute return.
+
+The trade count and estimated cost charts also show the cost of this behavior: the regime system trades more than buy-and-hold, so transaction costs are higher. This is the price paid for active risk control.
 
 ## What We Learned So Far
 
