@@ -58,8 +58,14 @@ def _style_axes(ax) -> None:
 
 
 def _mean_nav(results: list[DailyBacktestResult]) -> np.ndarray:
-    min_len = min(len(result.equity_curve) for result in results)
-    curves = np.asarray([result.equity_curve[:min_len] for result in results], dtype=np.float64)
+    max_len = max(len(result.equity_curve) for result in results)
+    padded = []
+    for result in results:
+        curve = np.asarray(result.equity_curve, dtype=np.float64)
+        if curve.size < max_len:
+            curve = np.pad(curve, (0, max_len - curve.size), mode="edge")
+        padded.append(curve)
+    curves = np.asarray(padded, dtype=np.float64)
     return np.mean(curves, axis=0)
 
 
@@ -107,7 +113,7 @@ def plot_nav(method_results: dict[str, list[DailyBacktestResult]], output_path: 
     for method, results in method_results.items():
         nav = _mean_nav(results)
         ax.plot(nav, label=_label(method), color=_color(method), linewidth=2.2)
-    ax.set_title("Average NAV on Test Set", fontsize=14, weight="bold")
+    ax.set_title("Average NAV on Test Set After Warmup", fontsize=14, weight="bold")
     ax.set_xlabel("Trading days")
     ax.set_ylabel("Net asset value")
     _style_axes(ax)
@@ -202,7 +208,29 @@ def _ticker_path(data_dir: Path, ticker: str) -> Path:
     return data_dir / f"{ticker.replace('.', '_').lower()}.csv"
 
 
-def rebuild_regime_results(output_dir: str | Path, data_dir: str | Path = "data/stooq") -> dict[str, list[DailyBacktestResult]]:
+def _mean_metrics(results: list[DailyBacktestResult]) -> dict[str, float]:
+    keys = results[0].metrics.keys()
+    out: dict[str, float] = {}
+    for key in keys:
+        values = [result.metrics[key] for result in results]
+        out[key] = float(np.mean(values)) if isinstance(values[0], float) else int(np.sum(values))
+    return out
+
+
+def _aggregate_results(method_results: dict[str, list[DailyBacktestResult]], cost_bps: float) -> pd.DataFrame:
+    rows = []
+    for method, results in method_results.items():
+        metrics = _mean_metrics(results)
+        metrics["estimated_cost"] = metrics["turnover"] * cost_bps / 10_000.0
+        rows.append({"method": method, **metrics})
+    return pd.DataFrame(rows)
+
+
+def rebuild_regime_results(
+    output_dir: str | Path,
+    data_dir: str | Path = "data/stooq",
+    warmup_days: int = 200,
+) -> dict[str, list[DailyBacktestResult]]:
     out = Path(output_dir)
     data_path = Path(data_dir)
     summary = pd.read_json(out / "summary.json", typ="series")
@@ -235,23 +263,24 @@ def rebuild_regime_results(output_dir: str | Path, data_dir: str | Path = "data/
     for ticker in tickers:
         prices = _load_close_prices(_ticker_path(data_path, ticker))
         test_prices = split_prices(prices).test
+        benchmark_prices = test_prices[warmup_days:] if len(test_prices) > warmup_days + 2 else test_prices
         methods["regime_entry_soft_exit"].append(
-            regime_entry_soft_exit_backtest(test_prices, classifier, exit_agent, entry_cfg)
+            regime_entry_soft_exit_backtest(test_prices, classifier, exit_agent, entry_cfg, evaluation_start=warmup_days)
         )
         methods["buy_and_hold"].append(
-            daily_buy_and_hold(test_prices, cost_bps=entry_cfg.cost_bps, annual_cash_rate=entry_cfg.annual_cash_rate)
+            daily_buy_and_hold(benchmark_prices, cost_bps=entry_cfg.cost_bps, annual_cash_rate=entry_cfg.annual_cash_rate)
         )
         methods["exit_only_soft_60"].append(
-            daily_agent_backtest(test_prices, exit_agent, episode_length=60, cost_bps=entry_cfg.cost_bps, annual_cash_rate=entry_cfg.annual_cash_rate)
+            daily_agent_backtest(benchmark_prices, exit_agent, episode_length=60, cost_bps=entry_cfg.cost_bps, annual_cash_rate=entry_cfg.annual_cash_rate)
         )
         methods["trailing_stop_60"].append(
-            daily_rule_backtest(test_prices, "trailing_stop", episode_length=60, cost_bps=entry_cfg.cost_bps, annual_cash_rate=entry_cfg.annual_cash_rate)
+            daily_rule_backtest(benchmark_prices, "trailing_stop", episode_length=60, cost_bps=entry_cfg.cost_bps, annual_cash_rate=entry_cfg.annual_cash_rate)
         )
         methods["fixed_tp_sl_60"].append(
-            daily_rule_backtest(test_prices, "fixed_tp_sl", episode_length=60, cost_bps=entry_cfg.cost_bps, annual_cash_rate=entry_cfg.annual_cash_rate)
+            daily_rule_backtest(benchmark_prices, "fixed_tp_sl", episode_length=60, cost_bps=entry_cfg.cost_bps, annual_cash_rate=entry_cfg.annual_cash_rate)
         )
         methods["hard_router_60"].append(
-            daily_agent_backtest(test_prices, hard_router, episode_length=60, cost_bps=entry_cfg.cost_bps, annual_cash_rate=entry_cfg.annual_cash_rate)
+            daily_agent_backtest(benchmark_prices, hard_router, episode_length=60, cost_bps=entry_cfg.cost_bps, annual_cash_rate=entry_cfg.annual_cash_rate)
         )
     return methods
 
@@ -260,21 +289,22 @@ def write_nav_data(method_results: dict[str, list[DailyBacktestResult]], output_
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
     navs = {method: _mean_nav(results) for method, results in method_results.items()}
-    min_len = min(len(nav) for nav in navs.values())
-    df = pd.DataFrame({"day": np.arange(min_len)})
+    max_len = max(len(nav) for nav in navs.values())
+    df = pd.DataFrame({"day": np.arange(max_len)})
     for method, nav in navs.items():
-        df[method] = nav[:min_len]
+        if nav.size < max_len:
+            nav = np.pad(nav, (0, max_len - nav.size), mode="edge")
+        df[method] = nav
     df.to_csv(output, index=False)
     return str(output)
 
 
 def write_full_regime_visualization(output_dir: str | Path, data_dir: str | Path = "data/stooq") -> dict[str, str]:
     out = Path(output_dir)
-    aggregate_df = pd.read_csv(out / "test_metrics_aggregate.csv")
     summary = pd.read_json(out / "summary.json", typ="series")
     cost_bps = float(dict(summary["best_entry_config"]).get("cost_bps", 5.0))
-    aggregate_df = add_estimated_cost(aggregate_df, cost_bps)
     method_results = rebuild_regime_results(out, data_dir=data_dir)
+    aggregate_df = _aggregate_results(method_results, cost_bps)
     figure_dir = out / "figures"
     paths = {
         "nav": figure_dir / "nav_test.png",

@@ -332,9 +332,25 @@ outputs/regime_trading_system_no_take_profit/visualization_metrics.csv
 
 ### Interpretation
 
-The NAV curve looks smoother because the regime system reduces risk exposure rather than simply maximizing raw return.
+Charts are generated after the 200-day feature warmup. The warmup period is excluded from the plotted NAV so the initial cash-only period does not appear as a misleading straight line.
 
-On this test set, `RL Regime Specialist` has slightly lower total return than buy-and-hold, but it also has lower annualized volatility and lower maximum drawdown. That combination gives it a higher Sharpe ratio. In other words, the model's current advantage is risk-adjusted performance and drawdown control, not maximum absolute return.
+On this post-warmup test window, `RL Regime Specialist` has lower total return than buy-and-hold, but it also has lower annualized volatility and lower maximum drawdown:
+
+```text
+RL Regime Specialist:
+  total return       46.76%
+  annual volatility  16.72%
+  max drawdown      -19.97%
+  Sharpe             0.83
+
+Buy & Hold:
+  total return       66.28%
+  annual volatility  19.45%
+  max drawdown      -21.40%
+  Sharpe             0.84
+```
+
+This means the model reduced risk, but in this specific test it did not convert that risk reduction into a higher Sharpe ratio versus buy-and-hold. The more defensible interpretation is: the regime system is a risk-control overlay, not a return maximizer.
 
 The trade count and estimated cost charts also show the cost of this behavior: the regime system trades more than buy-and-hold, so transaction costs are higher. This is the price paid for active risk control.
 
