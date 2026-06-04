@@ -6,8 +6,8 @@ This repository explores whether market-regime recognition, simulation-pretraine
 
 ## Authors
 
-- 许叔尧, NUS EE
-- 代景行, NTU DSAI
+- Xu Shuyao, NUS EE
+- Dai Jingxing, NTU DSAI
 
 Important: this is a research project, not financial advice and not a production trading system.
 
