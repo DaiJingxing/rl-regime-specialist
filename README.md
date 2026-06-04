@@ -4,6 +4,11 @@ Research prototype for regime-aware trading systems.
 
 This repository explores whether market-regime recognition, simulation-pretrained specialist agents, and rule-based risk overlays can improve risk-adjusted performance versus simple buy-and-hold baselines.
 
+## Authors
+
+- 许叔尧, NUS EE
+- 代景行, NTU DSAI
+
 Important: this is a research project, not financial advice and not a production trading system.
 
 ## Current Project Status
