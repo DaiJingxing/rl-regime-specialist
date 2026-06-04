@@ -8,24 +8,26 @@ Important: this is a research project, not financial advice and not a production
 
 ## Current Project Status
 
-The project began as a simulation-pretrained sell/exit model and evolved into a modular trading research framework:
+The current project focus is the sell / exit model.
+
+Earlier versions experimented with a full buy-and-sell pipeline, including a regime classifier and entry/risk rules. That buy-side system is not considered solved yet. The current defensible scope is narrower:
 
 ```text
-market data
-  -> regime classifier
-  -> entry / risk filter
-  -> simulation-pretrained DQN specialist exit engine
-  -> daily portfolio-style backtest
-  -> benchmark comparison
+Given an existing long position, decide whether to hold or sell.
 ```
 
-The current model is useful mainly as a risk-control overlay. It can often reduce drawdowns and avoid some catastrophic buy-and-hold outcomes, but it has not proven to be a robust standalone alpha engine. In many strong-trend assets such as mega-cap growth stocks, high-beta technology names, and BTC, buy-and-hold can still outperform because the model exits or de-risks too early.
-
-The clearest current positioning is:
+The project should therefore be read as an exit-model research prototype, not a complete trading system. The current research question is:
 
 ```text
-Use momentum / relative strength / portfolio rotation as the return engine.
-Use this regime model as a risk filter or position-reduction layer.
+Can simulation-pretrained regime specialists produce better exit behavior than simple rule-based exits such as trailing stop or fixed take-profit / stop-loss?
+```
+
+Current positioning:
+
+```text
+Main model: sell / exit model
+Buy model: experimental and not yet reliable
+Full buy/sell system: not the current claim
 ```
 
 ## Core Components
@@ -71,68 +73,43 @@ src/router.py
 src/train_router.py
 ```
 
-### 3. Independent Regime Classifier
+### 3. Exit Benchmarks
 
-The newer system adds a separate market-regime classifier. It is not the same as the soft router.
+The current evaluation compares the learned exit model against exit-only and rule-based baselines:
 
-It predicts soft probabilities:
+- exit-only soft router
+- hard router
+- trailing stop
+- fixed take-profit / stop-loss
+- buy-and-hold reference
 
-```text
-p_bull
-p_bear
-p_sideways
-```
-
-The classifier uses market-only features such as:
-
-- short and medium-term returns
-- price relative to moving averages
-- volatility
-- drawdown
-- range position
-
-Training labels are weakly supervised from future 60-day returns:
+Important distinction:
 
 ```text
-future_return_60 >= +6% -> bull
-future_return_60 <= -6% -> bear
-otherwise              -> sideways
+Exit-only soft router, hard router, trailing stop, and fixed TP/SL do not choose entry timing.
+They are mechanically entered and then decide when to exit.
 ```
 
-At backtest time, the classifier only uses current and historical information.
+This keeps the comparison focused on exit behavior instead of mixing it with an unsolved buy-side problem.
 
-Relevant file:
+### 4. Experimental Buy-Side Components
+
+The repository still contains experimental buy-side modules:
 
 ```text
 src/regime_classifier.py
-```
-
-### 4. Regime-Aware Entry and Risk System
-
-The current full system uses the independent classifier to decide whether new exposure is allowed:
-
-```text
-trend / bull state:
-  allow trend entry
-
-sideways state:
-  allow pullback/rebound entry
-
-risk-off / bear state:
-  avoid new exposure
-```
-
-The latest version removed fixed take-profit logic because it cut winners too early. Exits now focus on:
-
-- risk-off probability
-- trend drawdown stop
-- maximum holding period
-- soft-router exit for non-trend states
-
-Relevant file:
-
-```text
 src/regime_system.py
+src/regime_pipeline.py
+```
+
+These modules explored market-state classification and entry/risk filters, but they are not treated as the current validated model. The buy-side system needs more work before it can be presented as a reliable complete trading system.
+
+Current status:
+
+```text
+Sell model: current main research object
+Buy model: experimental / unresolved
+Complete buy-sell system: not yet established
 ```
 
 ### 5. Daily Backtesting
@@ -212,9 +189,9 @@ Run the original pipeline on synthetic data:
 python -m src.main run-all --use-simulated-real
 ```
 
-## Full Regime System
+## Experimental Full Regime System
 
-Run the current full system:
+The repository still includes the earlier full regime-system command:
 
 ```bash
 python -m src.main --output-dir outputs/regime_trading_system regime-system \
@@ -223,15 +200,9 @@ python -m src.main --output-dir outputs/regime_trading_system regime-system \
   --annual-cash-rate 0.0368
 ```
 
-This command:
+This command trains both exit and entry/risk components, but this path should be treated as experimental. The current project narrative does not claim that the buy-side model is solved.
 
-1. Downloads daily data for the default ETF universe.
-2. Trains simulated DQN specialists.
-3. Trains the soft router exit engine.
-4. Trains the independent regime classifier.
-5. Tunes entry/risk parameters on validation data.
-6. Runs daily test-set backtests.
-7. Writes reports under the selected `outputs/` directory.
+For the current research write-up, the more defensible comparison is the exit-only benchmark visualization.
 
 ## Scientific Comparison Backtest
 
@@ -356,45 +327,42 @@ The soft router and hard router are both exit-only benchmarks here. They do not 
 
 ## What We Learned So Far
 
-The model has shown some consistent strengths:
+The strongest current evidence is about exit behavior, not buy timing.
 
-- Lower maximum drawdown in many tested assets.
-- Better outcomes than buy-and-hold on some failed or deeply drawdown-prone assets.
-- Useful behavior as a risk filter in some high-volatility paths.
-- Modular structure that can be reused as a risk overlay.
+Observations from the exit-only comparisons:
 
-But it also has clear limitations:
+- The hard router can outperform the learned soft router on return and Sharpe in the current benchmark.
+- The soft router is more conservative: lower volatility and lower drawdown, but lower return.
+- Simple trailing stop and fixed TP/SL are useful risk controls, but they often sacrifice too much upside.
+- A complete buy-side model remains unresolved.
 
-- It often underperforms buy-and-hold in strong secular winners.
-- It exits too early for assets whose returns are concentrated in large trend runs.
-- It was originally trained and tuned mostly on ETF-like behavior, so direct transfer to high-beta single stocks is weak.
-- Single-asset timing is a hard problem; portfolio-level asset rotation is likely a better next step.
+Current interpretation:
+
+```text
+The project has a usable sell-model research framework.
+It does not yet have a reliable buy model.
+```
+
+Limitations:
+
+- Entry timing is still mechanically defined in most benchmarks.
+- Router performance may vary by asset universe and market regime.
+- The soft router has not consistently beaten the hard router.
+- The current model should not be presented as a complete autonomous trading system.
 
 ## Recommended Next Direction
 
-The current recommendation is not to keep forcing this model to be a standalone buy/sell alpha engine.
-
-The better research direction is:
+The immediate next step is not to keep expanding the buy model. The cleaner path is:
 
 ```text
-1. Build a portfolio-level backtester.
-2. Add a momentum / relative-strength rotation engine.
-3. Use this regime model as a risk overlay.
-4. Compare:
-   - pure momentum rotation
-   - momentum rotation + regime filter
-   - equal-weight buy-and-hold
-   - SPY / QQQ buy-and-hold
-   - T-bill cash benchmark
-5. Validate with walk-forward testing.
+1. Keep the project focused on sell / exit modeling.
+2. Compare soft router, hard router, trailing stop, and fixed TP/SL across more assets.
+3. Decide whether soft router is worth keeping as the main path.
+4. If hard router remains stronger, promote it to the default exit router.
+5. Revisit buy-side modeling only after the exit model story is stable.
 ```
 
-In short:
-
-```text
-Let momentum choose what to own.
-Let the regime model decide when risk is too high.
-```
+A complete trading system will eventually need a buy model, but that is a separate unresolved problem.
 
 ## Repository Layout
 
