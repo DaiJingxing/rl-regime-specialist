@@ -272,7 +272,7 @@ The project reports:
 
 ## Visualization
 
-The full buy/sell regime model can now generate research charts for:
+The project can generate research charts for exit-only and benchmark comparisons:
 
 - return
 - NAV / net asset value
@@ -334,25 +334,25 @@ outputs/regime_trading_system_no_take_profit/visualization_metrics.csv
 
 Charts are generated after the 200-day feature warmup. The warmup period is excluded from the plotted NAV so the initial cash-only period does not appear as a misleading straight line.
 
-On this post-warmup test window, `RL Regime Specialist` has lower total return than buy-and-hold, but it also has lower annualized volatility and lower maximum drawdown:
+The charts intentionally exclude the full `RL Regime Specialist` buy/sell model. They focus on comparable benchmark mechanisms:
 
 ```text
-RL Regime Specialist:
-  total return       46.76%
-  annual volatility  16.72%
-  max drawdown      -19.97%
-  Sharpe             0.83
-
-Buy & Hold:
-  total return       66.28%
-  annual volatility  19.45%
-  max drawdown      -21.40%
-  Sharpe             0.84
+Buy & Hold
+Exit-Only Soft Router
+Trailing Stop
+Fixed TP/SL
+Hard Router
 ```
 
-This means the model reduced risk, but in this specific test it did not convert that risk reduction into a higher Sharpe ratio versus buy-and-hold. The more defensible interpretation is: the regime system is a risk-control overlay, not a return maximizer.
+This keeps the visualization from mixing two different questions:
 
-The trade count and estimated cost charts also show the cost of this behavior: the regime system trades more than buy-and-hold, so transaction costs are higher. This is the price paid for active risk control.
+```text
+full buy/sell system quality
+vs.
+exit-only router / rule benchmark quality
+```
+
+The soft router and hard router are both exit-only benchmarks here. They do not choose a real entry point; they are mechanically entered and then decide when to exit.
 
 ## What We Learned So Far
 

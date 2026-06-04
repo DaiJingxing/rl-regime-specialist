@@ -41,6 +41,8 @@ METHOD_COLORS = {
     "hard_router_60": "#64748b",
 }
 
+EXCLUDED_FROM_CHARTS = {"regime_entry_soft_exit"}
+
 
 def _label(method: str) -> str:
     return METHOD_LABELS.get(method, method)
@@ -78,7 +80,7 @@ def _ordered_methods(df: pd.DataFrame) -> list[str]:
         "fixed_tp_sl_60",
         "hard_router_60",
     ]
-    present = set(df["method"])
+    present = set(df["method"]) - EXCLUDED_FROM_CHARTS
     return [method for method in preferred if method in present] + sorted(present - set(preferred))
 
 
@@ -111,6 +113,8 @@ def plot_nav(method_results: dict[str, list[DailyBacktestResult]], output_path: 
 
     fig, ax = plt.subplots(figsize=(11, 6))
     for method, results in method_results.items():
+        if method in EXCLUDED_FROM_CHARTS:
+            continue
         nav = _mean_nav(results)
         ax.plot(nav, label=_label(method), color=_color(method), linewidth=2.2)
     ax.set_title("Average NAV on Test Set After Warmup", fontsize=14, weight="bold")
@@ -161,6 +165,7 @@ def add_estimated_cost(df: pd.DataFrame, cost_bps: float) -> pd.DataFrame:
 def write_visualization_metrics(df: pd.DataFrame, output_path: str | Path) -> str:
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
+    df = df[~df["method"].isin(EXCLUDED_FROM_CHARTS)].copy()
     columns = [
         "method",
         "total_return",
