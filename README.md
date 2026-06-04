@@ -6,8 +6,8 @@ This repository explores whether market-regime recognition, simulation-pretraine
 
 ## Authors
 
-- Xu Shuyao, NUS EE
-- Dai Jingxing, NTU DSAI
+- Xu Shuyao, NUS EE           www.linkedin.com/in/shuyao-xu-4841103a7
+- Dai Jingxing, NTU DSAI      www.linkedin.com/in/jingxing-dai-71b86a360
 
 The authors contributed equally to this work.
 
